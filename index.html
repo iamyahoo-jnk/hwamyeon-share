@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>화면 공유기</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 입장 화면: 링크를 처음 연 탭 -->
+<main id="join" class="join" hidden>
+  <form id="join-form" class="card">
+    <h1>화면 공유기</h1>
+    <p class="muted">같은 방 코드로 들어온 사람끼리만 화면을 주고받습니다.</p>
+    <label for="name">이름</label>
+    <input id="name" maxlength="12" autocomplete="nickname" required placeholder="예: 민지">
+    <label for="room">방 코드</label>
+    <div class="row">
+      <input id="room" maxlength="6" required placeholder="예: 7K2QXA" autocapitalize="characters">
+      <button type="button" id="new-room" class="btn">새 방 만들기</button>
+    </div>
+    <button type="submit" class="btn primary big">입장</button>
+    <p class="muted small">입장하면 화면 오른쪽 절반에 화면 공유기 창이 열립니다.</p>
+  </form>
+  <div id="opened" class="card" hidden>
+    <h1>오른쪽 창에서 진행됩니다</h1>
+    <p>이 탭은 닫아도 됩니다.</p>
+    <p class="muted small">내 작업 창(VS Code 등)은 창 왼쪽 위 <b>초록 버튼에 마우스를 올리고 → '왼쪽에 타일'</b>을 고르면 왼쪽 절반에 붙습니다.</p>
+    <button type="button" id="reopen" class="btn">창 다시 열기</button>
+  </div>
+</main>
+
+<!-- 공유기 창: 오른쪽 절반 -->
+<div id="app" class="app" hidden>
+  <header class="top">
+    <b class="brand">화면 공유기</b>
+    <button class="chip" id="copy-room" title="방 코드 복사">방 <span id="room-code"></span></button>
+    <button class="chip" id="members-btn">참여 <span id="member-count">1</span>명</button>
+    <span class="status" id="status">연결 중…</span>
+    <span class="sp"></span>
+    <button class="btn ghost" id="snap" title="이 창을 화면 오른쪽 절반으로">오른쪽 절반</button>
+    <button class="btn primary" id="share-btn">공유 신청</button>
+  </header>
+  <ul id="members" class="members" hidden></ul>
+
+  <section class="stage">
+    <div id="empty" class="empty">
+      <p class="big-text">공유 대기 중</p>
+      <p class="muted">누군가 공유를 신청하면 여기 알림이 뜹니다. 내가 보여 주려면 <b>공유 신청</b>을 누르세요.</p>
+    </div>
+
+    <div id="viewer" class="viewer" hidden>
+      <video id="remote" autoplay playsinline muted></video>
+      <div class="overlay">
+        <span class="pill live"><i class="dot"></i><span id="viewer-who"></span> 님 화면</span>
+        <span class="pill ro">보기 전용</span>
+        <span class="pill" id="relay-info" hidden></span>
+      </div>
+      <p id="viewer-wait" class="wait">화면을 받아 오는 중…</p>
+      <button class="btn close-view" id="close-view">보기 닫기</button>
+    </div>
+
+    <div id="sharing" class="sharing" hidden>
+      <p class="big-text"><i class="dot"></i> 내 화면을 공유하고 있습니다</p>
+      <video id="preview" autoplay playsinline muted></video>
+      <p id="share-stats" class="muted"></p>
+      <button class="btn danger" id="end-share">공유 종료</button>
+    </div>
+  </section>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
