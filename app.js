@@ -11,7 +11,6 @@ const RELAY_FANOUT = 3;
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 const $ = id => document.getElementById(id);
-const qs = new URLSearchParams(location.search);
 const randStr = (n, chars = "abcdefghijkmnpqrstuvwxyz23456789") =>
   Array.from(crypto.getRandomValues(new Uint8Array(n)), b => chars[b % chars.length]).join("");
 const store = {
@@ -19,7 +18,18 @@ const store = {
   set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
 };
 
-if (qs.get("room") && qs.get("name")) startApp(qs.get("room").toUpperCase(), qs.get("name"));
+// 이름과 방 코드는 주소의 '?' 뒤(서버로 전송·기록됨)에 넣지 않는다.
+// 방 코드는 '#' 뒤(서버로 보내지지 않음)에, 이름은 브라우저 저장소에만 둔다.
+const WIN_PREFIX = "hwamyeon-";
+const validRoom = r => /^[A-Z0-9]{4,6}$/.test(r);
+const hashRoom = decodeURIComponent(location.hash.slice(1)).trim().toUpperCase();
+const session = {
+  get: k => { try { return sessionStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} },
+};
+const savedName = () => session.get("hws-name") || store.get("hws-name");
+
+if (window.name.startsWith(WIN_PREFIX) && validRoom(hashRoom) && savedName()) startApp(hashRoom, savedName());
 else startJoin();
 
 /* ───────── 입장 화면 ───────── */
@@ -27,14 +37,15 @@ else startJoin();
 function startJoin() {
   $("join").hidden = false;
   $("name").value = store.get("hws-name") || "";
-  $("room").value = (qs.get("room") || "").toUpperCase();
+  $("room").value = validRoom(hashRoom) ? hashRoom : ""; // 초대 링크(…/#방코드)로 열면 미리 채움
   $("new-room").onclick = () => { $("room").value = randStr(6, CODE_CHARS); };
   let last = null;
   $("join-form").onsubmit = e => {
     e.preventDefault();
     const name = $("name").value.trim(), room = $("room").value.trim().toUpperCase();
-    if (!name || !/^[A-Z0-9]{4,6}$/.test(room)) { $("room").focus(); return; }
+    if (!name || !validRoom(room)) { $("room").focus(); return; }
     store.set("hws-name", name);
+    session.set("hws-name", name); // 새 창에 복사되어 전달됨
     if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
     last = { room, name };
     openApp(room, name);
@@ -43,10 +54,16 @@ function startJoin() {
 }
 
 function openApp(room, name) {
-  const url = `${location.pathname}?room=${room}&name=${encodeURIComponent(name)}`;
+  const url = `${location.pathname}#${room}`;
   const r = rightHalf();
-  const win = window.open(url, "hwamyeon-" + room, `popup=yes,left=${r.x},top=${r.y},width=${r.w},height=${r.h}`);
-  if (!win) { location.href = url; return; } // 팝업 차단 시 이 탭에서 진행
+  const win = window.open(url, WIN_PREFIX + room, `popup=yes,left=${r.x},top=${r.y},width=${r.w},height=${r.h}`);
+  if (!win) { // 팝업 차단 시 이 탭에서 진행
+    window.name = WIN_PREFIX + room;
+    history.replaceState(null, "", url);
+    $("join").hidden = true;
+    startApp(room, name);
+    return;
+  }
   $("join-form").hidden = true;
   $("opened").hidden = false;
 }
@@ -90,9 +107,10 @@ function startApp(room, name) {
   if (window.opener) snap();
   $("snap").onclick = snap;
 
-  $("copy-room").onclick = async () => {
-    try { await navigator.clipboard.writeText(room); info("방 코드를 복사했습니다."); }
-    catch { info(`방 코드: ${room}`); }
+  $("copy-room").onclick = async () => { // 초대 링크: 열면 방 코드가 미리 채워짐
+    const link = `${location.origin}${location.pathname}#${room}`;
+    try { await navigator.clipboard.writeText(link); info("초대 링크를 복사했습니다. 단톡방에 붙여 넣으세요."); }
+    catch { info(`초대 링크: ${link}`); }
   };
   $("members-btn").onclick = () => { $("members").hidden = !$("members").hidden; };
 
